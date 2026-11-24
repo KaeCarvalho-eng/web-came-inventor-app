@@ -31,10 +31,15 @@ def gerar_perfil_came(raio_base, trechos, lei_selecionada, n_pontos=720):
     s = np.zeros_like(theta_deg)
     s_acumulado = 0.0
 
-    for t_ini, t_fim, tipo, H in trechos:
+    for idx, (t_ini, t_fim, tipo, H) in enumerate(trechos):
         if t_fim <= t_ini:
             continue
-        mask = (theta_deg >= t_ini) & (theta_deg <= t_fim)
+
+        eh_ultimo = idx == len(trechos) - 1
+        mask = (theta_deg >= t_ini) & (theta_deg <= t_fim if eh_ultimo else theta_deg < t_fim)
+        if not np.any(mask):
+            continue
+
         u = (theta_deg[mask] - t_ini) / (t_fim - t_ini)
 
         if tipo == "subida":
@@ -44,7 +49,7 @@ def gerar_perfil_came(raio_base, trechos, lei_selecionada, n_pontos=720):
             s[mask] = s_acumulado - H * calcular_deslocamento_trecho(u, lei_selecionada)
             s_acumulado -= H
         else:  # parada
-            s[mask] = s_acumulado
+            s[mask] = np.full(np.sum(mask), s_acumulado)
 
     raio_mm = raio_base + s
     return theta_deg, s, raio_mm
@@ -125,7 +130,8 @@ with col_graf:
     ax.plot(theta_rad, np.full_like(theta_rad, raio_base), "--", color="gray", label="Raio base (Rb)")
     ax.set_title("Perfil Geométrico do Came", pad=18, fontweight="bold")
     ax.legend(loc="upper right")
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig, width="stretch")
+    plt.close(fig)
 
 with col_info:
     st.metric("Raio Mínimo", f"{np.min(raio_mm):.2f} mm")
@@ -138,5 +144,5 @@ with col_info:
         data=dxf_bytes,
         file_name="perfil_came.dxf",
         mime="application/dxf",
-        use_container_width=True,
+        width="stretch",
     )
